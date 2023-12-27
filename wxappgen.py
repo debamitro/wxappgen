@@ -7,6 +7,9 @@ class App_files_generator:
     def print_wx_statusbar_include(self, f):
         print ("#include \"wx/statusbr.h\"", file=f)
     
+    def print_wx_thread_include(self, f):
+        print ("#include \"wx/thread.h\"", file=f)
+
     def print_header_guard_open (self, headerName, f):
         print ("#ifndef {}\n#define {}\n".format(headerName, headerName), file=f)
 
@@ -14,11 +17,12 @@ class App_files_generator:
         print ("/// @file {}".format (filename), file=f)
         print ("/// @author {}\n".format(self.author), file=f)
         
-    def __init__ (self, name, author, prefix, statusbar_y):
+    def __init__ (self, name, author, prefix, statusbar_y, threaded_y):
         self.prefix = prefix
         self.statusbar_y = statusbar_y
         self.name = name
         self.author = author
+        self.threaded = threaded_y
 
     def print_app_include(self, f):
         print("#include \"{}App.hh\"".format(self.prefix), file=f)
@@ -57,10 +61,16 @@ class App_files_generator:
     def print_frame_class_header (self, f):
         frameName = "{}Frame".format(self.prefix)
         print ("\n/// {} represents the main window of the application".format(frameName), file=f)
-        print("class {}: public wxFrame\n{{".format(frameName), file=f)
+        print("class {}: public wxFrame".format(frameName), end='', file=f)
+        if self.threaded == "Y":
+            print (", wxThreadHelper", file=f)
+        print ("{", file=f)
         print("public:\n    {} ();".format(frameName), file=f)
         print("    ~{} () = default;\n".format(frameName), file=f)
         print("private:", file=f)
+        if self.threaded == "Y":
+            print ("    /// This gets called in the child thread", file=f)
+            print ("    wxThread::ExitCode Entry ();", file=f)
         if self.statusbar_y == "Y":
             print("    wxStatusBar* statusbar_;", file=f)
         print("    wxDECLARE_EVENT_TABLE ();\n};", file=f)
@@ -70,18 +80,20 @@ class App_files_generator:
         print ("wxEND_EVENT_TABLE()", file=f)
 
     def print_frame_class_definitions (self, f):
-        print ("{}Frame::{}Frame () :".format(self.prefix, self.prefix), file=f)
-        print ("    wxFrame (nullptr, wxID_ANY, \"{}\")".format(self.name), end=None, file=f)
+        print ("\n{}Frame::{}Frame () :".format(self.prefix, self.prefix), file=f)
+        print ("    wxFrame (nullptr, wxID_ANY, \"{}\")".format(self.name), end='', file=f)
         if self.statusbar_y == "Y":
             print (",\n    statusbar_ (nullptr)", file=f)
         print ("\n{", file=f)
         if self.statusbar_y == "Y":
-            print ("""
-    statusbar_ = new wxStatusBar (this, wxID_ANY);
+            print ("""    statusbar_ = new wxStatusBar (this, wxID_ANY);
     statusbar_->SetFieldsCount (2);
     SetStatusBar (statusbar_);
 """, file=f)
         print ("}", file=f)
+        if self.threaded == "Y":
+            print ("\nwxThread::ExitCode {}Frame::Entry ()".format(self.prefix), file=f)
+            print ("{\n    // Your implementation here\n    return 0;\n}", file=f)
 
     def generate (self):
         with open ('main.cc','w') as f:
@@ -107,6 +119,8 @@ class App_files_generator:
             self.print_wx_include (f)
             if self.statusbar_y == "Y":
                 self.print_wx_statusbar_include (f)
+            if self.threaded == "Y":
+                self.print_wx_thread_include (f)
             self.print_frame_class_header (f)
             print ("\n#endif", file=f)
         with open ("{}Frame.cc".format(self.prefix), 'w') as f:
@@ -151,7 +165,12 @@ if __name__ == "__main__":
         statusbar_y = "N"
     else:
         statusbar_y = "Y"
-    generator = App_files_generator (name, author, prefix, statusbar_y)
+    threaded_y = input('Do you need threads? (Y/n) ')
+    if threaded_y == "N" or threaded_y == "n":
+        threaded_y = "N"
+    else:
+        threaded_y = "Y"
+    generator = App_files_generator (name, author, prefix, statusbar_y, threaded_y)
     generator.generate ()
 
     
