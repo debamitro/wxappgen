@@ -67,6 +67,11 @@ class App_files_generator:
         print ("{", file=f)
         print("public:\n    {} ();".format(frameName), file=f)
         print("    ~{} () = default;\n".format(frameName), file=f)
+        print("    void OnClose (wxCloseEvent & evt);\n", file=f)
+        print("    void OnDataFromWorker (wxThreadEvent & evt);\n", file=f)
+        print("    void OnWorkerEnd (wxThreadEvent & evt);\n", file=f)
+        print("    void StartWorkerThread ();\n", file=f)
+        print("    void StopWorkerThread ();\n", file=f)
         print("private:", file=f)
         if self.threaded == "Y":
             print ("    /// This gets called in the child thread", file=f)
@@ -91,7 +96,33 @@ class App_files_generator:
     SetStatusBar (statusbar_);
 """, file=f)
         print ("}", file=f)
+        print ("\nvoid {}Frame::OnClose (wxCloseEvent & evt)".format(self.prefix), file=f)
+        print ("{\n    // Your implementation here\n}", file=f)
         if self.threaded == "Y":
+            print ("\nvoid {}Frame::OnDataFromWorker (wxThreadEvent & evt)".format(self.prefix), file=f)
+            print ("{\n    // Your implementation here\n}", file=f)
+            print ("\nvoid {}Frame::OnWorkerEnd (wxThreadEvent & evt)".format(self.prefix), file=f)
+            print ("{\n    // Your implementation here\n}", file=f)
+            print ("\nvoid {}Frame::StartWorkerThread ()".format(self.prefix), file=f)
+            print ("""{
+    if (CreateThread(wxTHREAD_JOINABLE) != wxTHREAD_NO_ERROR)
+    {
+        wxLogError("Could not create the worker thread!");
+        return;
+    }
+
+    // Thread is created
+            
+    if (GetThread()->Run() != wxTHREAD_NO_ERROR)
+    {
+        wxLogError("Could not run the worker thread!");
+        return;
+    }
+
+    // Thread is running
+}""", file=f)
+            print ("\nvoid {}Frame::StopWorkerThread ()".format(self.prefix), file=f)
+            print ("{\n    // Your implementation here\n}", file=f)
             print ("\nwxThread::ExitCode {}Frame::Entry ()".format(self.prefix), file=f)
             print ("{\n    // Your implementation here\n    return 0;\n}", file=f)
 
